@@ -21,11 +21,11 @@ if (substr($sapi_type, 0, 3) == 'cgi') {
 ```
 https://www.php.net/manual/zh/function.php-sapi-name.php
 
- --posix_getpid ( void ) : int
- 返回当前进程 id
+--posix_getpid ( void ) : int
+返回当前进程 id
 
- -- posix_getlogin ( void ) : string
- Returns the login name of the user owning the current process. 
+-- posix_getlogin ( void ) : string
+Returns the login name of the user owning the current process. 
 
 -- pcntl_fork ( void ) : int
 pcntl_fork()函数创建一个子进程，这个子进程仅PID（进程号） 和PPID（父进程号）与其父进程不同。fork怎样在您的系统工作的详细信息请查阅您的系统 的fork（2）手册。 
