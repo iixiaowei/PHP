@@ -1,0 +1,56 @@
+#多进程
+php_sapi_name ( void ) : string  
+返回 web 服务器和 PHP 之间的接口类型
+
+返回描述 PHP 所使用的接口类型（the Server API, SAPI）的小写字符串。 例如，CLI 的 PHP 下这个字符串会是 "cli"，Apache 下可能会有几个不同的值，取决于具体使用的 SAPI。 以下列出了可能的值。 
+
+返回接口类型的小写字符串。
+尽管不够全面，可能返回的值包括了 aolserver、apache、 apache2filter、apache2handler、 caudium、cgi （直到 PHP 5.3）, cgi-fcgi、cli、 cli-server、 continuity、embed、fpm-fcgi、 isapi、litespeed、 milter、nsapi、 phttpd、pi3web、roxen、 thttpd、tux 和 webjames。 
+
+```php
+
+<?php
+$sapi_type = php_sapi_name();
+if (substr($sapi_type, 0, 3) == 'cgi') {
+    echo "You are using CGI PHP\n";
+} else {
+    echo "You are not using CGI PHP\n";
+}
+?>
+
+```
+
+https://www.php.net/manual/zh/function.php-sapi-name.php
+
+
+1、Process Control should not be enabled within a webserver environment and unexpected results may happen if any Process Control functions are used within a webserver environment. 
+
+2、优点:
+    1. 使用多进程, 子进程结束以后, 内核会负责回收资源
+    2. 使用多进程,子进程异常退出不会导致整个进程Thread退出. 父进程还有机会重建流程.
+    3. 一个常驻主进程, 只负责任务分发, 逻辑更清楚.
+
+3、使用PHP提供的POSIX和Pcntl系列函数, 来实现一个PHP命令解析器, 主进程负责接受用户输入, 然后fork子进程执行, 并负责回显子进程的结束状态.  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#参考网址：
+http://www.laruence.com/2009/06/11/930.html
