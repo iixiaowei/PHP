@@ -1,0 +1,45 @@
+#AMQP 扩展安装
+
+PHP 使用 AMQP 协议来连接 Rabbitmq， AMQP 协议即 “Advanced Message Queuing Protocol ”，高级消息队列协议。
+使 PHP 支持 AMQP 协议，需要安装：
+rabbitmq 的客户端 C 类库 ：rabbitmq-c 
+PHP 官方提供的 AMQP 扩展 amqp-1.6.1
+两者的关系是，PHP 扩展依赖 rabbitmq-c 类库。
+
+1.安装 rabbitmq-c ：
+mkdir -p ~/download 
+cd ~/download
+https://github.com/alanxz/rabbitmq-c/releases/download/v0.8.0/rabbitmq-c-0.8.0.tar.gz
+tar xvzf rabbitmq-c-0.8.0.tar.gz
+mkdir build 
+cd build
+cmake ..
+make 
+make install
+
+2.安装 AMQP 扩展：
+wget -c https://pecl.php.net/get/amqp-1.6.1.tgz
+tar xvzf amqp-1.6.1.tgz
+cd amqp-1.6.1
+/usr/local/php/bin/phpize
+./configure --with-php-config=/usr/local/php/bin/php-config --with-amqp 
+make 
+make install
+
+3.配置 php.ini
+打开 php.ini , 在底部添加:
+
+[AMQP]
+extension="amqp.so"
+
+重启php。
+
+4.检查是否安装成功
+
+php -m | grep amqp 
+
+到这里，PHP 的扩展就安装完成了。
+
+# 参考网址
+http://www.dahouduan.com/2017/11/22/php-install-amqp-extension/?_blank
+

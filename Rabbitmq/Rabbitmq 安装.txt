@@ -1,0 +1,80 @@
+#Centos 6 通过 yum 安装 Rabbitmq
+
+1、安装 Erlang
+Rabbitmq 的运行需要 Erlang 环境，首先安装 Erlang。
+mkdir -p ~/download
+cd ~/download
+wget http://packages.erlang-solutions.com/erlang-solutions-1.0-1.noarch.rpm
+rpm -Uvh erlang-solutions-1.0-1.noarch.rpm
+yum -y install erlang;
+
+2、安装 Rabbitmq
+wget https://www.rabbitmq.com/releases/rabbitmq-server/v3.6.9/rabbitmq-server-3.6.9-1.el6.noarch.rpm
+rpm  -Uvh rabbitmq-server-3.6.9-1.el6.noarch.rpm
+rpm --import https://www.rabbitmq.com/rabbitmq-release-signing-key.asc
+yum -y install rabbitmq-server-3.6.9-1.noarch.rpm
+
+启动 Rabbitmq：
+/ect/init.d/rabbitmq-server start
+chkconfig rabbitmq-server on
+
+开启图形界面支持：
+
+ rabbitmq-plugins enable rabbitmq_management
+
+添加用户：
+
+rabbitmqctl add_user admin admin
+rabbitmqctl set_user_tags admin administrator
+rabbitmqctl set_permissions -p / admin ".*" ".*" ".*"
+
+
+浏览器打开 “http://localhost:15672″， 用帐号“admin”, 密码“admin” 就可以登录了，
+
+    ！！注意localhost 换成实际地址或ip， rabbitmq 默认提供了 “guest” 帐号，但是只能在localhost 域名下登录， 
+
+开启 stomp 支持：
+
+rabbitmq-plugins enable rabbitmq_stomp
+
+错误处理
+
+    出现 “socat is needed by rabbitmq-server-3.6.9-1.el6.noarch”的错误
+    执行 yum -y install socat
+
+------------------------------------------------------------------------------------------------------
+
+#mac 安装RabbitMq
+brew  install rabbitmq
+
+php中的rabbitmq 扩展是amqp ,而amqp依赖于rabbitmq-c ，首先需要安装rabbitmq-c
+brew install rabbitmq-c
+
+安装成功后，进入php 的安装目录中的bin 文件夹使用pecl 安装amqp:
+curl 'http://pecl.php.net/get/amqp-1.9.3.tgz' -o amqp-1.9.3.tgz 
+sudo ./pecl install amqp-1.9.3.tgz 
+直至出现Set the path to librabbitmq install prefix [autodetect] 
+使用brew install rabbitmq-c 查询这个path，然后paste到终端。然后回车，这时候啥也不用做，util it is success.
+
+Build process completed successfully
+Installing '/Applications/MAMP/bin/php/php7.1.12/lib/php/extensions/no-debug-non-zts-20160303/amqp.so'
+install ok: channel://pecl.php.net/amqp-1.9.4
+configuration option "php_ini" is not set to php.ini location
+You should add "extension=amqp.so" to php.ini
+
+
+
+
+#参考网址
+http://www.dahouduan.com/2017/11/22/centos6-yum-install-rabbitmq/?_blank
+http://www.dahouduan.com/2017/11/22/php-install-amqp-extension/
+https://www.jianshu.com/p/5eb62a6d249d
+https://yuanxuxu.com/2013/05/29/mac-os-xia-rabbitmq-yi-ji--php-amqpkuo-zhan-an-zhuang-ji-lu/
+https://blog.csdn.net/diandianxiyu_geek/article/details/56667415
+https://my.oschina.net/yuansir/blog/135226
+https://www.rabbitmq.com/getstarted.html
+https://segmentfault.com/a/1190000018515670
+https://www.codecasts.com/
+http://www.icode9.com/content-1-47877.html
+
+
