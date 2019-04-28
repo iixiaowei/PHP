@@ -1,4 +1,138 @@
 #多进程
+
+#多进程应用场景
+1、处理文件
+当一个文件包含许多任务（每个任务一行），并且各任务之间不存在执行的先后顺序关系，可以将文件进行分割（分割后的文件数量与进程数一致），然后使用多进程进行处理。
+例如，现在有10个邮箱账号存储在文件mailist.txt中，每次发送邮件需要耗时2s，则采用单进程依次发送完这些邮件需要耗时20。 
+如果采用多进程，例如3个进程进行处理，首先需要将文件按行数拆分成3个小文件，其中两个文件是4条记录，一个文件是2条记录。每个进程处理一个小文件，则不同进程发送完邮件的耗时为8、8、6，总耗时取最大值为8s。
+2、拆分文件
+原始文件 maillist.txt
+
+000000@163.com
+111111@163.com
+222222@163.com
+333333@163.com
+444444@163.com
+555555@163.com
+666666@163.com
+777777@163.com
+888888@163.com
+999999@163.com
+
+拆分操作
+split -a 1 -l 4 maillist.txt task
+
+拆分后的文件
+taska
+000000@163.com
+111111@163.com
+222222@163.com
+333333@163.com
+
+taskb
+444444@163.com
+555555@163.com
+666666@163.com
+777777@163.com
+
+taskc
+888888@163.com
+999999@163.com
+
+```php
+
+$cmds = [
+    ['/Users/zhezhao/www/work/text_mail.php','a'],
+    ['/Users/zhezhao/www/work/text_mail.php','b'],
+    ['/Users/zhezhao/www/work/text_mail.php','c']
+];
+
+foreach ($cmds as $cmd){
+    $pid = pcntl_fork();
+    if($pid == -1){
+        exit('create process failed');
+    }
+    if($pid > 0){
+        pcntl_wait($status,WNOHANG);
+    }else{
+        pcntl_exec('/usr/bin/php',$cmd);
+    }
+}
+
+text_mail.php
+require 'MailWork.php';
+$name = $argv[1];
+echo $name." start #".time().PHP_EOL;
+$worker = new MailWork($name);
+$res = $worker->text_mail($argc,$argv);
+if($res === false){
+    echo $worker->getLastError();
+}else{
+    echo $name." ".$res." works done # ".time().PHP_EOL;
+}
+```
+3、处理消息队列
+这是另外一种常见的常见，我们将耗时操作放入消息队列，通过脚本从消息队列中取出并执行记录。
+如果通过单个进程依次读取并处理消息，容易使队列中积累大量数据，导致操作的延迟时间较长，这种场景可以通过多个进程来读取并处理消息。
+redis中的pop操作具有原子性，不会存在多个读取到相同的队列消息的情况。
+
+redis_task.php
+```php
+$redis = new Redis();
+$redis->connect('192.168.1.10');
+$task_key = 'task_list';
+$task_list = [
+    '000000@163.com',
+    '111111@163.com',
+    '222222@163.com',
+    '333333@163.com',
+    '444444@163.com',
+    '555555@163.com',
+    '666666@163.com',
+    '777777@163.com',
+    '888888@163.com',
+    '999999@163.com',
+];
+foreach ($task_list as $task){
+    $redis->lPush($task_key,$task);
+}
+
+$cmds = [
+    ['/Users/zhezhao/www/work/redis_mail.php','a'],
+    ['/Users/zhezhao/www/work/redis_mail.php','b'],
+    ['/Users/zhezhao/www/work/redis_mail.php','c']
+];
+
+foreach ($cmds as $cmd){
+    $pid = pcntl_fork();
+    if($pid == -1){
+        exit('create process failed');
+    }
+    if($pid > 0){
+        pcntl_wait($status,WNOHANG);
+    }else{
+        pcntl_exec('/usr/bin/php',$cmd);
+    }
+}
+
+redis_mail.php
+require 'MailWork.php';
+$name = $argv[1];
+echo $name." start #".time().PHP_EOL;
+$worker = new MailWork($name);
+$redis = new Redis();
+$redis->connect('192.168.1.10');
+$task_key = 'task_list';
+while($redis->lLen($task_key)>0){
+    $mailto = $redis->rPop($task_key);
+    $worker->redis_mail($mailto);
+}
+echo $name." work done # ".time().PHP_EOL;
+```
+
+
+
+
 -- php_sapi_name ( void ) : string  
 返回 web 服务器和 PHP 之间的接口类型
 
@@ -31,7 +165,11 @@ https://www.php.net/manual/zh/function.php-sapi-name.php
 Returns the login name of the user owning the current process. 
 
 -- pcntl_fork ( void ) : int
-pcntl_fork()函数创建一个子进程，这个子进程仅PID（进程号） 和PPID（父进程号）与其父进程不同。
+pcntl_fork()
+在当前进程当前位置产生分支（子进程）。译注：fork是创建了一个子进程，父进程和子进程 都从fork的位置开始向下继续执行，
+不同的是父进程执行过程中，得到的fork返回值为子进程 号，而子进程得到的是0。
+
+函数创建一个子进程，这个子进程仅PID（进程号） 和PPID（父进程号）与其父进程不同。
 fork怎样在您的系统工作的详细信息请查阅您的系统 的fork（2）手册。 
 成功时，在父进程执行线程内返回产生的子进程的PID，在子进程执行线程内返回0。失败时，在 父进程上下文返回-1，不会创建子进程，并且会引发一个PHP错误。 
 如果返回值为-1，则fork失败，并且没有子进程。 这可能是由于缺少内存，或者因为已经达到对用户进程数量的系统限制。
@@ -281,10 +419,7 @@ Process Control should not be enabled within a webserver environment and unexpec
 
 
 
-
-
-
-
 #参考网址：
+https://php.net/manual/zh/book.pcntl.php
 http://www.laruence.com/2009/06/11/930.html
 http://hejunhao.me/archives/470
