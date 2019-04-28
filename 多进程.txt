@@ -1,5 +1,5 @@
 #多进程
-php_sapi_name ( void ) : string  
+-- php_sapi_name ( void ) : string  
 返回 web 服务器和 PHP 之间的接口类型
 
 返回描述 PHP 所使用的接口类型（the Server API, SAPI）的小写字符串。 例如，CLI 的 PHP 下这个字符串会是 "cli"，Apache 下可能会有几个不同的值，取决于具体使用的 SAPI。 以下列出了可能的值。 
@@ -19,8 +19,38 @@ if (substr($sapi_type, 0, 3) == 'cgi') {
 ?>
 
 ```
-
 https://www.php.net/manual/zh/function.php-sapi-name.php
+
+ --posix_getpid ( void ) : int
+ 返回当前进程 id
+
+ -- posix_getlogin ( void ) : string
+ Returns the login name of the user owning the current process. 
+
+-- pcntl_fork ( void ) : int
+pcntl_fork()函数创建一个子进程，这个子进程仅PID（进程号） 和PPID（父进程号）与其父进程不同。fork怎样在您的系统工作的详细信息请查阅您的系统 的fork（2）手册。 
+成功时，在父进程执行线程内返回产生的子进程的PID，在子进程执行线程内返回0。失败时，在 父进程上下文返回-1，不会创建子进程，并且会引发一个PHP错误。 
+
+-- posix_getpid ( void ) : int
+Return the process identifier of the current process. 返回当前进程的 id 
+返回进程 id 号，是整型（integer）。 
+
+--  pcntl_wait ( int &$status [, int $options = 0 ] ) : int
+等待或返回fork的子进程状态
+wait函数刮起当前进程的执行直到一个子进程退出或接收到一个信号要求中断当前进程或调用一个信号处理函数。 
+如果一个子进程在调用此函数时已经退出（俗称僵尸进程），此函数立刻返回。子进程使用的所有系统资源将 被释放。
+关于wait在您系统上工作的详细规范请查看您系统的wait（2）手册。
+Note:
+    这个函数等同于以-1作为参数pid 的值并且没有options参数来调用pcntl_waitpid() 函数。
+
+-- pcntl_wifexited ( int $status ) : bool
+检查状态代码是否代表一个正常的退出。
+检查子进程状态代码是否代表正常退出。 
+参数 status 是提供给成功调用 pcntl_waitpid() 时的状态参数。
+当子进程状态代码代表正常退出时返回 TRUE ，其他情况返回 FALSE。 
+
+--  eval ( string $code ) : mixed
+把字符串作为PHP代码执行
 
 
 1、Process Control should not be enabled within a webserver environment and unexpected results may happen if any Process Control functions are used within a webserver environment. 
@@ -32,7 +62,67 @@ https://www.php.net/manual/zh/function.php-sapi-name.php
 
 3、使用PHP提供的POSIX和Pcntl系列函数, 来实现一个PHP命令解析器, 主进程负责接受用户输入, 然后fork子进程执行, 并负责回显子进程的结束状态.  
 
+```php
 
+#!/bin/env php
+<?php
+/** A example denoted muti-process application in php
+ * @filename fork.php
+ * @touch date Wed 10 Jun 2009 10:25:51 PM CST
+ * @author Laruence<laruence@baidu.com>
+ * @license http://www.zend.com/license/3_0.txt   PHP License 3.0
+ * @version 1.0.0
+*/
+ 
+/** 确保这个函数只能运行在SHELL中 */
+if (substr(php_sapi_name(), 0, 3) !== 'cli') {
+    die("This Programe can only be run in CLI mode");
+}
+ 
+/**  关闭最大执行时间限制, 在CLI模式下, 这个语句其实不必要 */
+set_time_limit(0);
+ 
+$pid  = posix_getpid(); //取得主进程ID
+$user = posix_getlogin(); //取得用户名
+ 
+echo <<<eod
+USAGE: [command | expression]
+input php code to execute by fork a new process
+input quit to exit
+ 
+        Shell Executor version 1.0.0 by laruence
+EOD;
+ 
+while (true) {
+ 
+        $prompt = "\n{$user}$ ";
+        $input  = readline($prompt);
+ 
+        readline_add_history($input);
+        if ($input == 'quit') {
+               break;
+        }
+        process_execute($input . ';');
+}
+ 
+exit(0);
+ 
+function process_execute($input) {
+        $pid = pcntl_fork(); //创建子进程
+        if ($pid == 0) {//子进程
+                $pid = posix_getpid();
+                echo "* Process {$pid} was created, and Executed:\n\n";
+                eval($input); //解析命令
+                exit;
+        } else {//主进程
+                $pid = pcntl_wait($status, WUNTRACED); //取得子进程结束状态
+                if (pcntl_wifexited($status)) {
+                        echo "\n\n* Sub process: {$pid} exited with {$status}";
+                }
+        }
+}
+  
+```
 
 
 
