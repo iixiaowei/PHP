@@ -2,10 +2,13 @@
 -- php_sapi_name ( void ) : string  
 返回 web 服务器和 PHP 之间的接口类型
 
-返回描述 PHP 所使用的接口类型（the Server API, SAPI）的小写字符串。 例如，CLI 的 PHP 下这个字符串会是 "cli"，Apache 下可能会有几个不同的值，取决于具体使用的 SAPI。 以下列出了可能的值。 
+返回描述 PHP 所使用的接口类型（the Server API, SAPI）的小写字符串。 例如，CLI 的 PHP 下这个字符串会是 "cli"，
+Apache 下可能会有几个不同的值，取决于具体使用的 SAPI。 以下列出了可能的值。 
 
 返回接口类型的小写字符串。
-尽管不够全面，可能返回的值包括了 aolserver、apache、 apache2filter、apache2handler、 caudium、cgi （直到 PHP 5.3）, cgi-fcgi、cli、 cli-server、 continuity、embed、fpm-fcgi、 isapi、litespeed、 milter、nsapi、 phttpd、pi3web、roxen、 thttpd、tux 和 webjames。 
+尽管不够全面，可能返回的值包括了 aolserver、apache、 apache2filter、apache2handler、 caudium、cgi （直到 PHP 5.3）, 
+cgi-fcgi、cli、 cli-server、 continuity、embed、fpm-fcgi、 isapi、litespeed、 milter、nsapi、 phttpd、pi3web、roxen、
+thttpd、tux 和 webjames。 
 
 ```php
 
@@ -28,8 +31,11 @@ https://www.php.net/manual/zh/function.php-sapi-name.php
 Returns the login name of the user owning the current process. 
 
 -- pcntl_fork ( void ) : int
-pcntl_fork()函数创建一个子进程，这个子进程仅PID（进程号） 和PPID（父进程号）与其父进程不同。fork怎样在您的系统工作的详细信息请查阅您的系统 的fork（2）手册。 
+pcntl_fork()函数创建一个子进程，这个子进程仅PID（进程号） 和PPID（父进程号）与其父进程不同。
+fork怎样在您的系统工作的详细信息请查阅您的系统 的fork（2）手册。 
 成功时，在父进程执行线程内返回产生的子进程的PID，在子进程执行线程内返回0。失败时，在 父进程上下文返回-1，不会创建子进程，并且会引发一个PHP错误。 
+如果返回值为-1，则fork失败，并且没有子进程。 这可能是由于缺少内存，或者因为已经达到对用户进程数量的系统限制。
+如果返回值是大于0的任何数字，当前脚本是调用pcntl_fork（）的父级，返回值是分叉的子进程的进程ID（PID）。 最后，如果返回值为0，则当前脚本是被分叉的子节点。
 
 -- posix_getpid ( void ) : int
 Return the process identifier of the current process. 返回当前进程的 id 
@@ -48,6 +54,10 @@ Note:
 检查子进程状态代码是否代表正常退出。 
 参数 status 是提供给成功调用 pcntl_waitpid() 时的状态参数。
 当子进程状态代码代表正常退出时返回 TRUE ，其他情况返回 FALSE。 
+
+--  getmypid ( void ) : int
+获取当前 PHP 进程 ID。 
+返回当前 PHP 进程 ID，或在错误时返回 FALSE。
 
 --  eval ( string $code ) : mixed
 把字符串作为PHP代码执行
@@ -125,16 +135,149 @@ function process_execute($input) {
 ```
 
 
+--------------------------------------------------------------------------------------------------------------------------------
+PHP可以通过PHP的进程控制函数（PCNTL）实现多进程，要注意的是，PCNTL只在UNIX LIKE OS下有效，windows是不支持的，
+另外如果你在编译时没有加入这个扩展则需要自行安装.
+pcntl_fork
+首先我们需要了解一个非常重要的函数,pcntl_fork().
 
+pcntl_fork —— 在当前进程当前位置产生分支（子进程）.fork创建了一个子进程，父进程和子进程都从fork的位置开始向下继续执行，
+不同的是父进程执行过程中，得到的fork返回值为子进程号（PID），而子进程得到的是0.通过fork创建的子进程可以看成是父进程的一个拷贝，
+无论是数据空间还是指令指针都完全一致，但从fork之后开始这两个父子进程就再也没有任何继承关系，两者可以看成是两个独立的进程，
+而fork返回值的差异可以作为父子进程的区分，也是多进程编程实现的关键.另外，如果fork失败，则会返回-1.
 
+Talk is cheap show me the code:
 
+#!/usr/bin/env php
+<?php
+date_default_timezone_set("asia/shanghai");
 
+$pid = pcntl_fork();
+if ($pid==-1) {
+    die('fork失败');
+} else if ($pid==0) {
+    //子进程执行
+    $sec = 10;
+    echo date('H:i:s') .'| 我是子进程 (PID:' . posix_getpid() . ')' . ',我休眠' . $sec . '秒后结束' . PHP_EOL;
+    
+} else if ($pid>0) {
+    //父进程执行
+    $sec = 15;
+    echo date('H:i:s') . '| 我是父进程 (PID:' . posix_getpid() . '),我创建了一个子进程 (PID:' . $pid . ')' . ',我休眠' . $sec . '秒后结束' . PHP_EOL;
+}
+sleep($sec);
+echo date('H:i:s') . '| 进程(PID:'.posix_getpid().')结束' . PHP_EOL;
+exit(0);
 
+/**********************************输出*************************************
+16:22:13| 我是父进程 (PID:28082),我创建了一个子进程 (PID:28083),我休眠15秒后结束
+16:22:13| 我是子进程 (PID:28083),我休眠10秒后结束
+16:22:23| 进程(PID:28083)结束
+16:22:28| 进程(PID:28082)结束
 
+僵尸进程
 
+在Linux进程的状态中，僵尸进程（Zombie）是非常特殊的一种，它已经放弃了几乎所有内存空间，没有任何可执行代码，也不能被调度，
+仅仅在进程列表中保留一个位置，记载该进程的退出状态等信息供其他进程收集，除此之外，僵尸进程不再占有任何内存空间.当一个进程结束了，
+而它的父进程没有等待它（wait/waitpid），那么它将会成为僵尸进程，僵尸进程不断累积会导致系统因为没有更多可用的进程号而无法创建新的进程.
 
+在上面的例子中是否出现僵尸进程？答案是否，由于父进程休眠15秒后便退出了，子进程没有成为僵尸进程，因为当进程结束时系统会扫描所有进程，
+看看哪些进程是刚才结束的这个进程的子进程，此时这类子进程将成为“孤儿进程”，这些孤儿进程会过继给1号进程（init进程），
+init会负责处理这些孤儿进程的资源释放问题.由此可见，存在僵尸进程必定存在其父进程，而当父进程没有等待子进程时，杀死父进程也可以清理僵尸进程.
 
+pcntl_waitpid
+如果上面例子中的主进程是一个常驻的进程，永不退出，那么子进程就会成为僵尸进程，为了避免僵尸进程的产生，父进程需要对其子进程进行等待，
+pcntl扩展中通过pcntl_waitpid方法实现.
 
+原型：int pcntl_waitpid ( int $pid , int &$status [, int $options = 0 ] )
+
+说明：挂起当前进程的执行直到参数pid指定的进程号的进程退出， 或接收到一个信号要求中断当前进程或调用一个信号处理函数.
+pcntl_waitpid()将会存储状态信息到status 参数上，第三个参数可以设置函数是否为阻塞方式调用（设置WNOHANG时以非阻塞方式）.
+
+阻塞方式：阻塞当前进程，直到当前进程的一个子进程退出时返回，返回值为子进程的pid，如果发生错误则返回-1;
+
+非阻塞方式：有子进程退出时返回子进程的pid，如果没有子进程退出则立刻返回，返回值为0;
+
+当创建多个子进程时，如果使用阻塞方式，那么子进程实际上是串行工作的，因为父进程会阻塞直到一个子进程退出才会继续往下执行去创建下一个新的子进程，
+因而设置非阻塞方式更利于达到并发的效果.
+
+Talk is cheap show me the code:
+
+#!/usr/bin/env php
+<?php
+date_default_timezone_set("asia/shanghai");
+
+for ($i=1; $i <= 10; $i++) { 
+    $pid = pcntl_fork();
+
+    switch ($pid) {
+    case -1:
+        echo 'fork failed!'.PHP_EOL;
+        break;
+    case 0:
+        //子进程
+        sleep(rand(10,60));
+        exit(0);
+        break;  
+    default:
+        //父进程
+        echo date('H:i:s')."   开启子进程{$pid}" . PHP_EOL;
+        $child_pids[]=$pid;
+        break;
+    }
+}
+
+while(count($child_pids)>0){
+    
+    foreach ($child_pids as $key => $pid) {
+    $res = pcntl_waitpid($pid, $status, WNOHANG);   
+    if($res==-1||$res>0){
+        echo date('H:i:s')."   子进程{$pid}关闭..." . PHP_EOL;
+        unset($child_pids[$key]);//剔除已关闭的子进程
+    }   
+    }
+    
+    if(count($child_pids)==0){
+    break;
+    }
+    sleep(5);
+}
+echo date('H:i:s').'   主进程结束' . PHP_EOL;
+
+/**********输出*************
+
+17:33:47   开启子进程29022
+17:33:47   开启子进程29023
+17:33:47   开启子进程29024
+17:33:47   开启子进程29025
+17:33:47   开启子进程29026
+17:33:47   开启子进程29027
+17:33:47   开启子进程29028
+17:33:47   开启子进程29029
+17:33:47   开启子进程29030
+17:33:47   开启子进程29031
+17:34:02   子进程29026关闭...
+17:34:07   子进程29022关闭...
+17:34:07   子进程29025关闭...
+17:34:07   子进程29030关闭...
+17:34:12   子进程29029关闭...
+17:34:12   子进程29031关闭...
+17:34:27   子进程29024关闭...
+17:34:42   子进程29027关闭...
+17:34:42   子进程29028关闭...
+17:34:47   子进程29023关闭...
+17:34:47   主进程结束
+
+*****************************/
+提醒
+摘自PHP手册：
+
+Process Control should not be enabled within a webserver environment and unexpected results may happen if any Process Control functions are used within a webserver environment.
+
+一句话：请勿在PHP WEB开发中试图通过PCNTL使用多进程！
+
+转载请注明出处：
+© http://hejunhao.me
 
 
 
@@ -144,3 +287,4 @@ function process_execute($input) {
 
 #参考网址：
 http://www.laruence.com/2009/06/11/930.html
+http://hejunhao.me/archives/470
